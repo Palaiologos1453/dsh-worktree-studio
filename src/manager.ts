@@ -1,7 +1,7 @@
 /** Durable worktree task lifecycle and guarded delivery. */
 
 import { createHash, randomUUID } from 'node:crypto'
-import { access, mkdir } from 'node:fs/promises'
+import { access, mkdir, realpath } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import type { SubprocessRuntime } from '@deepseek-ai/dsh-subprocess'
 import { StudioError, errorMessage } from './errors.ts'
@@ -331,18 +331,23 @@ export class LocalWorktreeStudioManager implements WorktreeStudioManager {
     return this.mutate(async () => {
       const state = await this.store.read()
       const byRepository = new Map<string, Set<string>>()
+      const linkedByTask = new Map<string, boolean>()
       for (const task of Object.values(state.tasks)) {
         if (task.phase === 'archived') continue
         if (!byRepository.has(task.repository)) {
           const linked = await this.git.listWorktrees(task.repository)
           byRepository.set(task.repository, new Set(linked.map(item => canonicalKey(item.path))))
         }
+        const known = byRepository.get(task.repository)
+        let linked = known?.has(canonicalKey(task.path)) === true
+        if (!linked) linked = await this.confirmLinkedPath(task)
+        linkedByTask.set(String(task.id), linked)
       }
       await this.store.update(current => {
         const tasks = { ...current.tasks }
         for (const task of Object.values(current.tasks)) {
           if (task.phase === 'archived') continue
-          const linked = byRepository.get(task.repository)?.has(canonicalKey(task.path)) === true
+          const linked = linkedByTask.get(String(task.id)) === true
           if (!linked) {
             tasks[String(task.id)] = {
               ...task,
@@ -377,6 +382,18 @@ export class LocalWorktreeStudioManager implements WorktreeStudioManager {
       })
       return await this.doctor()
     })
+  }
+
+  /** Confirm a path through Git when worktree-list formatting did not match it. */
+  private async confirmLinkedPath(task: TaskRecord): Promise<boolean> {
+    try {
+      const identity = await this.git.identify(task.path)
+      const actualPath = await realpath(task.path)
+      return samePath(identity.commonDirectory, task.commonDirectory)
+        && samePath(identity.topLevel, actualPath)
+    } catch {
+      return false
+    }
   }
 
   /** Report Git availability and persisted states that need attention. */
