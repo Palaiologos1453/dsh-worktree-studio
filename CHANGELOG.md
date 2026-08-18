@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.1.1 - 2026-08-19
+
+### Fixed
+
+- Confirm existing worktree paths through Git identity during recovery when Windows path formatting differs from `git worktree list` output.
+- Serialize Windows fixture files in CI to avoid subprocess and worktree metadata contention.
+
 ## 0.1.0 - 2026-08-19
 
 ### Added
