@@ -1,0 +1,6 @@
+url: https://github.com/Palaiologos1453/dsh-worktree-studio
+name: Palaiologos1453/dsh-worktree-studio
+category: git
+description:
+  en: Human-operated worktree task board that binds validation results to exact Git content fingerprints and rechecks clean-target mergeability before delivery, without adding model tools.
+  zh: 人工操作的 worktree 任务工作台，将验证结果绑定到精确 Git 内容指纹，并在交付前重新检查干净目标的可合并性，不添加模型工具。
